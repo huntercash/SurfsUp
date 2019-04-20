@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 from flask import Flask, jsonify
 
-
 #################################################
 # Database Setup
 #################################################
@@ -39,14 +38,22 @@ app = Flask(__name__)
 def welcome():
     """List all available api routes."""
     return (
-        f"Available Routes:<br/>"
+        f"<center>"
+        f"<b>Available Routes:</b><br/>"
         f"/api/precipitation<br/>"
         f"/api/stations<br/>"
         f"/api/temperature<br/>"
-        f"/api/start<br/>"
-        f"/api/start-end<br/>"
+        f"</br>"
+        f"Date Format yyyy-mm-dd</br>"
+        f"/api/dates/start<br/>"
+        f"/api/dates/start/end<br/>"
+        f"</center>"
     )
 
+
+#################################################
+# Precipitation
+#################################################
 
 @app.route("/api/precipitation")
 def precipitation():
@@ -68,12 +75,9 @@ def precipitation():
 
     return jsonify(precipitation_list)
 
-# @app.route("/api/v1.0/justice-league")
-# def justice_league():
-#     """Return the justice league data as json"""
-
-#     return jsonify(justice_league_members)
-
+#################################################
+# Stations
+#################################################
 
 @app.route("/api/stations")
 def station():
@@ -87,7 +91,9 @@ def station():
     return jsonify(station_list)
 
 
-
+#################################################
+# Temperature
+#################################################
 
 @app.route("/api/temperature")
 def tobs():
@@ -105,21 +111,34 @@ def tobs():
         tobs_dict["date"] = date
         tobs_dict["tobs"] = tobs
         tobs_summary.append(tobs_dict)
-
     return jsonify(tobs_summary)
 
 
+#################################################
+# Dates TMIN, TAVG, TMAX
+#################################################
+
+# Defines the start date function
+def start_summary(start_date):
+    return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start_date).all()
+# Defines the start/end function
+def end_summary(start_date,end_date):
+    return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start_date).filter(Measurement.date <= end_date).all()
 
 
-# /api/<start> and /api/<start>/<end>
-
-# Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
-
-# When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
-
-# Hint: You may want to look into how to create a defualt value for your route variable.
-
-# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
+@app.route("/api/dates/")
+@app.route("/api/dates/<start>/")
+def start_temps(start='2016-08-23'):
+    start_list = start_summary(start)
+    start_dict = {"START DATE":start, "TMIN":start_list[0][0], "TAVG":start_list[0][1], "TMAX":start_list[0][2]}
+    return jsonify(start_dict)
+@app.route("/api/dates/<start>/<end>")
+def end_temps(start,end):
+    end_list = end_summary(start,end)
+    end_dict = {"START DATE":start, "END DATE":end, "TMIN":end_list[0][0], "TAVG":end_list[0][1], "TMAX":end_list[0][2]}
+    return jsonify(end_dict)
 
 if __name__ == '__main__':
     app.run(debug=True)
